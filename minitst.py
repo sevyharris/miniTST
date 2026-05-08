@@ -7,6 +7,7 @@ import minitst.species
 import xtb.ase.calculator
 import glob
 
+
 my_library = '/home/moon/library_mini'
 
 
@@ -38,8 +39,9 @@ for sp_name, species in my_species.items():
             i += 1
         sp_name = sp_name + '_' + str(i)
     
-    if not os.path.exists(os.path.join(library_directory, sp_name)):
-        os.makedirs(os.path.join(library_directory, sp_name), exist_ok=True)
+    sp_dir = os.path.join(library_directory, sp_name)
+    if not os.path.exists(sp_dir):
+        os.makedirs(sp_dir, exist_ok=True)
 
     # TODO, save the species object as a pickle file in the directory or just the species dictionary? we'll see
 
@@ -49,12 +51,18 @@ for sp_name, species in my_species.items():
     my_species = minitst.species.Species(species)
 
 
-    # my_species.generate_conformers(
-    #     ase_calculator=calc,
-    #     max_combos=1000,
-    #     max_conformers=10,
-    #     results_dir=sp_dir,
-    #     save_results=True,
-    # )
+    # make conformers directory
+    conformers_dir = os.path.join(sp_dir, "conformers")
+    if not os.path.exists(conformers_dir):
+        os.makedirs(conformers_dir, exist_ok=True)
+
+    calc = xtb.ase.calculator.XTB()
+    my_species.generate_conformers(
+        ase_calculator=calc,
+        max_combos=1000,
+        max_conformers=10,
+        results_dir=sp_dir,
+        save_results=True,
+    )
 
     break

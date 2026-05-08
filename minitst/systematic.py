@@ -31,7 +31,7 @@
 import itertools
 import logging
 import os
-import time
+
 import pandas as pd
 import numpy as np
 import functools
@@ -46,15 +46,13 @@ import ase.calculators.calculator
 import ase.optimize
 import ase.constraints
 
-import rdkit.Chem
-
 import rmgpy.exceptions
 import rmgpy.molecule
 
-import autotst
-from ..species import Conformer
-from ..reaction import TS
-from .utilities import get_energy, find_terminal_torsions
+# import minitst.species
+# from ..species import Conformer
+# from ..reaction import TS
+from minitst.utilities import get_energy, find_terminal_torsions
 
 
 def find_all_combos(
@@ -203,7 +201,8 @@ def opt_conf(i):
         if not os.path.exists(result_file) and conformer.save_results:
             logging.debug(f'No result file for {result_num:05}. Calculating...')
 
-    if not isinstance(conformer, TS):
+    if True:
+    # if not isinstance(conformer, TS):
         reference_mol = conformer.rmg_molecule.copy(deep=True)
         reference_mol = reference_mol.to_single_bonds()
     calculator = conformer.ase_molecule.get_calculator()
@@ -229,23 +228,24 @@ def opt_conf(i):
     for bond in conformer.get_bonds():
         labels.append(bond.atom_indices)
 
-    if isinstance(conformer, TS):
-        label = conformer.reaction_label
-        if conformer.reaction_family == 'Disproportionation':
-            ind1 = conformer.rmg_molecule.get_labeled_atoms("*1")[0].sorting_label
-            ind2 = conformer.rmg_molecule.get_labeled_atoms("*2")[0].sorting_label
-            ind3 = conformer.rmg_molecule.get_labeled_atoms("*4")[0].sorting_label
-        else:
-            ind1 = conformer.rmg_molecule.get_labeled_atoms("*1")[0].sorting_label
-            ind2 = conformer.rmg_molecule.get_labeled_atoms("*3")[0].sorting_label
-            ind3 = conformer.rmg_molecule.get_labeled_atoms("*2")[0].sorting_label
+    if False:
+    # if isinstance(conformer, TS):
+    #     label = conformer.reaction_label
+    #     if conformer.reaction_family == 'Disproportionation':
+    #         ind1 = conformer.rmg_molecule.get_labeled_atoms("*1")[0].sorting_label
+    #         ind2 = conformer.rmg_molecule.get_labeled_atoms("*2")[0].sorting_label
+    #         ind3 = conformer.rmg_molecule.get_labeled_atoms("*4")[0].sorting_label
+    #     else:
+    #         ind1 = conformer.rmg_molecule.get_labeled_atoms("*1")[0].sorting_label
+    #         ind2 = conformer.rmg_molecule.get_labeled_atoms("*3")[0].sorting_label
+    #         ind3 = conformer.rmg_molecule.get_labeled_atoms("*2")[0].sorting_label
 
-        if [ind1, ind2] not in labels and [ind2, ind1] not in labels:
-            labels.append([ind1, ind2])
-        if [ind2, ind3] not in labels and [ind3, ind2] not in labels:
-            labels.append([ind2, ind3])
-        if [ind1, ind3] not in labels and [ind3, ind1] not in labels:
-            labels.append([ind1, ind3])
+    #     if [ind1, ind2] not in labels and [ind2, ind1] not in labels:
+    #         labels.append([ind1, ind2])
+    #     if [ind2, ind3] not in labels and [ind3, ind2] not in labels:
+    #         labels.append([ind2, ind3])
+    #     if [ind1, ind3] not in labels and [ind3, ind1] not in labels:
+    #         labels.append([ind1, ind3])
 
         # TODO - not sure if this is helping things
         # if conformer.reaction_family == 'Disproportionation':
@@ -450,7 +450,8 @@ def systematic_search(
         assert energy_cutoff in energy_cutoff_options.keys(), 'energy_cutoff options are low, default, and high'
         energy_cutoff = energy_cutoff_options[energy_cutoff]
 
-    if not isinstance(conformer, TS):
+    if True:
+    # if not isinstance(conformer, TS):
         reference_mol = conformer.rmg_molecule.copy(deep=True)
         reference_mol = reference_mol.to_single_bonds()
 

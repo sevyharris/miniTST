@@ -28,20 +28,6 @@
 #
 ##########################################################################
 
-import os
-import sys
-import logging
-import itertools
-import pandas as pd
-import numpy as np
-import autotst
-from ..reaction import Reaction, TS
-from ..species import Species
-from ..geometry import Bond, Angle, Torsion, CisTrans
-import ase
-FORMAT = "%(filename)s:%(lineno)d %(funcName)s %(levelname)s %(message)s"
-logging.basicConfig(format=FORMAT, level=logging.INFO)
-
 
 def get_energy(conformer):
     """
