@@ -1,0 +1,14 @@
+name: minitst
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - ase
+  - rdkit
+  - rmgpy
+  - pytest
+  - pip
+  - pip:
+      - py3Dmol          # optional visualisation; conda-forge package exists too
