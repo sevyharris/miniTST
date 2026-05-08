@@ -34,10 +34,8 @@ import logging
 import numpy as np
 import cclib.io
 
-import autotst
-from ..reaction import Reaction, TS
-from ..species import Species, Conformer
-from ..geometry import Torsion
+from minitst import Species, Conformer
+from minitst import Torsion
 
 import ase
 import ase.calculators.gaussian
@@ -100,7 +98,8 @@ class Gaussian():
                 self.scratch = os.environ['GAUSS_SCRDIR'] = scratch
 
     def __repr__(self):
-        if isinstance(self.conformer, TS):
+        if False:
+        # if isinstance(self.conformer, TS):
             return f'<Gaussian Calculator {self.conformer.reaction_label}>'
         elif isinstance(self.conformer, Conformer):
             return f'<Gaussian Calculator {self.conformer.smiles}>'
@@ -143,7 +142,8 @@ class Gaussian():
         addsec += "D {} {} {} {} S {} {}\n".format(
             i + 1, j + 1, k + 1, ll + 1, steps, float(step_size))
 
-        if isinstance(self.conformer, TS):
+        if False:
+        # if isinstance(self.conformer, TS):
             extra = "Opt=(ts,CalcFC,ModRedun)"
             label = conformer_dir = self.conformer.reaction_label
             label += f"_{steps}by{int(step_size)}_{j}_{k}"
@@ -206,7 +206,8 @@ class Gaussian():
         - calc (ase.calculators.gaussian.Gaussian): an ase.calculators.gaussian.Gaussian calculator with all of the proper setting specified
         """
 
-        if isinstance(self.conformer, TS):
+        if False:
+        # if isinstance(self.conformer, TS):
             logging.info(
                 "TS object provided, cannot obtain a species calculator for a TS")
             return None

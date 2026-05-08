@@ -1,18 +1,16 @@
 import os
-import pickle
 
 import logging
 import rmgpy.chemkin
 import sys
-import hashlib
 import minitst.species
+import minitst.calculator.gaussian
 import xtb.ase.calculator
 import yaml
 import glob
 
 
 my_library = '/home/moon/library_mini'
-
 
 # read in the input file
 species_dictionary_file = sys.argv[1]
@@ -78,20 +76,54 @@ for entry in species_database:
         os.makedirs(sp_dir, exist_ok=True)
 
     # Make an autotst species
-    my_species = minitst.species.Species(species)
+    spec = minitst.species.Species(species)
 
     # make conformers directory
     conformers_dir = os.path.join(sp_dir, "conformers")
     if not os.path.exists(conformers_dir):
         os.makedirs(conformers_dir, exist_ok=True)
 
+    # generate conformers
     calc = xtb.ase.calculator.XTB()
-    my_species.generate_conformers(
+    spec.generate_conformers(
         ase_calculator=calc,
         max_combos=1000,
         max_conformers=10,
         results_dir=sp_dir,
         save_results=True,
     )
+
+
+    n_conformers = 0
+    for key in spec.conformers:
+        n_conformers += len(spec.conformers[key])
+
+
+    # ------------------ Use Gaussian to do a more detailed calculation ------------------
+
+    save_offset = 0
+    SP_SCR_DIR = 'TODO'
+    os.makedirs(SP_SCR_DIR, exist_ok=True)
+    for resonance_smiles in spec.conformers.keys():
+        for i, cf in enumerate(spec.conformers[resonance_smiles]):
+            conformer_index = i + save_offset
+            gaussian = minitst.calculator.gaussian.Gaussian(conformer=cf)
+
+            # additional_keywords = {'chk': os.path.join(SP_SCR_DIR, f'conformer_{conformer_index:04}.chk')}
+            additional_keywords = {}
+            calc = gaussian.get_conformer_calc(additional_keywords)
+            calc.label = f'conformer_{conformer_index:04}'
+            calc.directory = conformers_dir
+            if 'scratch' in calc.parameters:
+                calc.parameters.pop('scratch')
+            calc.parameters.pop('multiplicity')
+            calc.parameters['mult'] = cf.rmg_molecule.multiplicity
+            calc.write_input(cf.ase_molecule)
+        save_offset += len(spec.conformers[resonance_smiles])
+
+    # write to the status file to indicate that the conformer screening is complete
+    # species_log(species_index, f'Conformer screening complete')
+    # return True
+
 
     # break
