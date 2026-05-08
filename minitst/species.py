@@ -44,130 +44,40 @@ import rmgpy.species
 FORMAT = "%(filename)s:%(lineno)d %(funcName)s %(levelname)s %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 
-try:
-    import py3Dmol
-except ImportError:
-    logging.info("Error importing py3Dmol")
 
 
 class Species():
     """
-    A class for handling molecules in AutoTST
+    A class for handling molecules in minitst
     """
 
-    def __init__(self, smiles=[], rmg_species=None):
+    def __init__(self, rmg_molecule):
         """
-        A class that holds information for Species object
+        Parameters
+        ----------
+        rmg_molecule : rmgpy.molecule.Molecule or rmgpy.species.Species
+            The molecule to build the species from.  Resonance structures are
+            generated automatically; one Conformer is created per structure.
         """
-
-        assert isinstance(smiles, list)
+        assert isinstance(rmg_molecule, (rmgpy.molecule.Molecule, rmgpy.species.Species)), \
+            "rmg_molecule must be an rmgpy.molecule.Molecule or rmgpy.species.Species instance"
 
         self._conformers = None
+        if isinstance(rmg_molecule, rmgpy.species.Species):
+            rmg_molecule = rmg_molecule.molecule[0]
 
-        if ((len(smiles) != 0) and rmg_species):
-            # Provide both a list of smiles and an rmg_species
-            assert isinstance(
-                rmg_species,
-                (rmgpy.molecule.Molecule,
-                 rmgpy.species.Species))
-
-            if isinstance(rmg_species, rmgpy.molecule.Molecule):
-                rmg_species = rmgpy.species.Species(molecule=[rmg_species])
-                try:
-                    rmg_species.generate_resonance_structures()
-                except ValueError:
-                    logging.info(
-                        "Could not generate resonance structures for this species... Using molecule provided")
-
-            else:
-                try:
-                    rmg_species.generate_resonance_structures()
-                except ValueError:
-                    logging.info(
-                        "Could not generate resonance structures for this species... Using molecule provided")
-
-            smiles_list = []
-            for rmg_mol in rmg_species.molecule:
-                smiles_list.append(rmg_mol.to_smiles())
-
-            for s in smiles_list:
-                if s in smiles:
-                    continue
-                if not(s in smiles):
-                    smiles.append(s)
-
-            assert len(smiles) == len(
-                smiles_list), "The list of smiles presented does not match the possible species provided"
-
-            self.smiles = smiles
-            self.rmg_species = rmg_species
-
-        elif (rmg_species and (len(smiles) == 0)):
-            # RMG species provided, but not smiles
-
-            assert isinstance(
-                rmg_species,
-                (rmgpy.molecule.Molecule,
-                 rmgpy.species.Species))
-
-            if isinstance(rmg_species, rmgpy.molecule.Molecule):
-                rmg_species = rmgpy.species.Species(molecule=[rmg_species])
-                try:
-                    rmg_species.generate_resonance_structures()
-                except ValueError:
-                    logging.info(
-                        "Could not generate resonance structures for this species... Using molecule provided")
-
-            else:
-                try:
-                    rmg_species.generate_resonance_structures()
-                except ValueError:
-                    logging.info(
-                        "Could not generate resonance structures for this species... Using molecule provided")
-
-            smiles = []
-            for rmg_mol in rmg_species.molecule:
-                smiles.append(rmg_mol.to_smiles())
-
-            self.smiles = smiles
-            self.rmg_species = rmg_species
-
-        elif ((not rmg_species) and (len(smiles) != 0)):
-            # smiles provided but not species
-
-            species_list = []
-            for smile in smiles:
-                molecule = rmgpy.molecule.Molecule(smiles=smile)
-                species_list.append(molecule.generate_resonance_structures())
-
-            if len(smiles) != 1:
-                got_one = False
-                for s1 in species_list:
-                    for s2 in species_list:
-                        for m1 in s1:
-                            for m2 in s2:
-                                if m1.is_isomorphic(m2):
-                                    got_one = True
-                assert got_one, "smiless provided describe different species"
-
-            smiles_list = []
-            for mol in species_list[0]:
-                smiles_list.append(mol.to_smiles())
-
-            self.smiles = smiles_list
-            self.rmg_species = species_list[0]
-
-        else:
-            self.smiles = []
-            self.rmg_species = rmg_species
+        # Wrap in an RMG Species so we can generate resonance structures
+        self.rmg_species = rmgpy.species.Species(molecule=[rmg_molecule])
+        try:
+            self.rmg_species.generate_resonance_structures()
+        except ValueError:
+            logging.info(
+                "Could not generate resonance structures for this species... "
+                "Using molecule provided")
 
     def __repr__(self):
-        string = ""
-
-        for s in self.smiles:
-            string += s + " / "
-
-        return f'<Species "{string[:-3]}">'
+        smiles = [mol.to_smiles() for mol in self.rmg_species.molecule]
+        return f'<Species "{" / ".join(smiles)}">' 
 
     @property
     def conformers(self):
@@ -177,33 +87,32 @@ class Species():
 
     def generate_structures(self):
         conformers = {}
-        for smile in self.smiles:
-            conf = Conformer(smiles=smile)
-            conformers[smile] = [conf]
-
+        for rmg_mol in self.rmg_species.molecule:
+            conf = Conformer(rmg_molecule=rmg_mol)
+            conformers[rmg_mol.to_smiles()] = [conf]
         return conformers
 
-    def generate_conformers(self, ase_calculator, max_combos=1000, max_conformers=100, save_results=False, results_dir=''):
-        from .conformer.systematic import systematic_search, find_all_combos
+    # def generate_conformers(self, ase_calculator, max_combos=1000, max_conformers=100, save_results=False, results_dir=''):
+    #     from minitst.systematic import systematic_search, find_all_combos
 
-        # This for loop goes through all the resonance structures, so we should calculate them all
-        save_offset = 0
-        for smiles, conformers in self.conformers.items():
-            conformer = conformers[0]  # for some reason, this is a list, but it contains one conformer
-            conformer.save_results = save_results
-            conformer.results_dir = results_dir
-            conformer.save_offset = save_offset
-            conformer.ase_molecule.set_calculator(ase_calculator)
-            conformers = systematic_search(
-                conformer,
-                max_combos=max_combos,
-                max_conformers=max_conformers,
-            )
-            self.conformers[smiles] = conformers
-            # save_index is an offset to use in the numbering to account for resonance structures
-            save_offset += conformer.save_offset
+    #     # This for loop goes through all the resonance structures, so we should calculate them all
+    #     save_offset = 0
+    #     for smiles, conformers in self.conformers.items():
+    #         conformer = conformers[0]  # for some reason, this is a list, but it contains one conformer
+    #         conformer.save_results = save_results
+    #         conformer.results_dir = results_dir
+    #         conformer.save_offset = save_offset
+    #         conformer.ase_molecule.set_calculator(ase_calculator)
+    #         conformers = systematic_search(
+    #             conformer,
+    #             max_combos=max_combos,
+    #             max_conformers=max_conformers,
+    #         )
+    #         self.conformers[smiles] = conformers
+    #         # save_index is an offset to use in the numbering to account for resonance structures
+    #         save_offset += conformer.save_offset
 
-        return self.conformers
+    #     return self.conformers
 
     def count_conformers(self):
         count = 0
@@ -211,7 +120,7 @@ class Species():
             conformer = conformers[0]
             conformer.ase_molecule.set_calculator('SKIP')
             try:
-                import autotst.conformer.systematic as _systematic
+                import minitst.systematic as _systematic
             except ImportError:
                 raise ImportError(
                     "count_conformers() requires the full autotst package. "
@@ -232,8 +141,16 @@ class Conformer():
     A class for generating and editing 3D conformers of molecules
     """
 
-    def __init__(self, smiles=None, rmg_molecule=None, index=0):
-
+    def __init__(self, rmg_molecule=None, index=0):
+        """
+        Parameters
+        ----------
+        rmg_molecule : rmgpy.molecule.Molecule, optional
+            The molecule to build the conformer from.  When omitted an empty
+            shell is created (used internally by ``copy()``).
+        index : int
+            Conformer index within a conformer search.
+        """
         self.energy = None
         self.index = index
 
@@ -245,32 +162,21 @@ class Conformer():
         self.cistrans = []
         self.chiral_centers = []
         self._symmetry_number = None
-        self.save_results = False  # whether or not to save the results
-        self.results_dir = ''  # the directory to save the results to
-        self.save_offset = 0  # an offset to use in the numbering to account for resonance structures
+        self.save_results = False
+        self.results_dir = ''
+        self.save_offset = 0
 
-        if (smiles or rmg_molecule):
-            if smiles and rmg_molecule:
-                assert rmg_molecule.is_isomorphic(rmgpy.molecule.Molecule(
-                    smiles=smiles)), "smiles string did not match RMG Molecule object"
-                self.smiles = smiles
-                self.rmg_molecule = rmg_molecule
-
-            elif rmg_molecule:
-                self.rmg_molecule = rmg_molecule
-                self.smiles = rmg_molecule.to_smiles()
-
-            else:
-                self.smiles = smiles
-                self.rmg_molecule = rmgpy.molecule.Molecule(smiles=smiles)
-
+        if rmg_molecule is not None:
+            assert isinstance(rmg_molecule, rmgpy.molecule.Molecule), \
+                "rmg_molecule must be an rmgpy.molecule.Molecule instance"
+            self.rmg_molecule = rmg_molecule
+            self.smiles = rmg_molecule.to_smiles()
             self.rmg_molecule.update_multiplicity()
             self.get_molecules()
             self.get_geometries()
-
         else:
-            self.smiles = None
             self.rmg_molecule = None
+            self.smiles = None
 
     def __repr__(self):
         return f'<Conformer "{self.smiles}">'
@@ -387,18 +293,6 @@ class Conformer():
         self._ase_molecule = self.get_ase_mol()
 
         return self.rdkit_molecule, self.ase_molecule
-
-    def view(self):
-        """
-        A method designed to create a 3D figure of the AutoTST_Molecule with py3Dmol from the rdkit_molecule
-        """
-        mb = rdkit.Chem.MolToMolBlock(self.rdkit_molecule)
-        p = py3Dmol.view(width=600, height=600)
-        p.addModel(mb, "sdf")
-        p.setStyle({'stick': {}})
-        p.setBackgroundColor('0xeeeeee')
-        p.zoomTo()
-        return p.show()
 
     def get_bonds(self):
         """
